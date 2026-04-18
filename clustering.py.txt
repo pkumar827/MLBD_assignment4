@@ -1,0 +1,65 @@
+import numpy as np
+import random
+from pyspark.mllib.linalg import Vectors
+
+
+def readVectorsSeq(filename):
+    data = []
+    with open(filename, 'r') as f:
+        for line in f:
+            values = list(map(float, line.strip().split(',')))
+            data.append(Vectors.dense(values))
+    return data
+
+
+def distance(a, b):
+    return np.linalg.norm(np.array(a) - np.array(b))**2
+
+
+def kcenter(P, k):
+    centers = [random.choice(P)]
+    
+    for _ in range(1, k):
+        max_dist = -1
+        next_center = None
+        
+        for p in P:
+            min_dist = min(distance(p, c) for c in centers)
+            if min_dist > max_dist:
+                max_dist = min_dist
+                next_center = p
+                
+        centers.append(next_center)
+        
+    return centers
+
+
+def kmeansPP(P, k):
+    centers = [random.choice(P)]
+    
+    for _ in range(1, k):
+        distances = []
+        
+        for p in P:
+            d = min(distance(p, c) for c in centers)
+            distances.append(d)
+        
+        prob = np.array(distances) / sum(distances)
+        cumulative_prob = np.cumsum(prob)
+        r = random.random()
+        
+        for i, p in enumerate(P):
+            if r < cumulative_prob[i]:
+                centers.append(p)
+                break
+                
+    return centers
+
+
+def kmeansObj(P, C):
+    total = 0
+    
+    for p in P:
+        total += min(distance(p, c) for c in C)
+        
+    return total / len(P)

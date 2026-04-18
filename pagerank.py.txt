@@ -1,0 +1,27 @@
+from pyspark.sql import SparkSession
+
+
+def compute_pagerank(file_path, beta=0.8, iterations=40):
+    spark = SparkSession.builder.appName("PageRank").getOrCreate()
+    sc = spark.sparkContext
+
+    lines = sc.textFile(file_path)
+
+    edges = lines.map(lambda x: tuple(map(int, x.split())))
+    edges = edges.distinct()
+
+    links = edges.groupByKey().mapValues(set)
+
+    n = links.count()
+
+    ranks = links.mapValues(lambda _: 1/n)
+
+    for _ in range(iterations):
+        contribs = links.join(ranks).flatMap(
+            lambda x: [(dest, x[1][1]/len(x[1][0])) for dest in x[1][0]]
+        )
+
+        ranks = contribs.reduceByKey(lambda x, y: x + y) \
+                        .mapValues(lambda r: (1-beta)/n + beta*r)
+
+    return ranks.sortBy(lambda x: -x[1]).collect()
